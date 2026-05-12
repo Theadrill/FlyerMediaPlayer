@@ -31,7 +31,7 @@ O FlyerMediaPlayer é uma solução robusta de sinalização digital (Digital Si
 
 ---
 
-# FlyerMediaPlayer - Digital Signage for Android TV 🇬🇧
+# FlyerMediaPlayer - Digital Signage for Android TV EN
 
 FlyerMediaPlayer is a robust digital signage solution designed for Android TV (TV Boxes). It automates the playback of promotional flyers and entertainment content (like music videos or football matches) directly from a USB drive.
 
@@ -63,4 +63,3 @@ FlyerMediaPlayer is a robust digital signage solution designed for Android TV (T
 - Requires `READ_EXTERNAL_STORAGE` or `READ_MEDIA_VIDEO` permissions.
 
 ---
-*Developed for MARIA Digital Signage / Desenvolvido para MARIA Digital Signage.*
