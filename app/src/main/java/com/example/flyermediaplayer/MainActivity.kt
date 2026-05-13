@@ -8,12 +8,15 @@ import android.os.Looper
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.ProgressBar
 import android.widget.Toast
+import android.view.KeyEvent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import java.io.File
@@ -24,6 +27,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var playerView: PlayerView
     private lateinit var btnIniciar: Button
     private lateinit var loadingBar: View
+    private lateinit var progressBarVideo: ProgressBar
 
     private var listaMaria = listOf<File>()
     private var listaAleatoria = listOf<File>()
@@ -37,7 +41,18 @@ class MainActivity : AppCompatActivity() {
 
     // Cronômetro para cortar vídeos de futebol/bandas (8 minutos)
     private val handlerCorte = Handler(Looper.getMainLooper())
-    private val tempoCorteMs = 8 * 60 * 1000L 
+    private val tempoCorteMs = 8 * 60 * 1000L
+
+    private val handlerProgresso = Handler(Looper.getMainLooper())
+    private val updateProgressoRunnable = object : Runnable {
+        override fun run() {
+            if (::player.isInitialized && player.isPlaying) {
+                val currentPos = player.currentPosition
+                progressBarVideo.progress = currentPos.toInt()
+                handlerProgresso.postDelayed(this, 1000)
+            }
+        }
+    } 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,6 +64,7 @@ class MainActivity : AppCompatActivity() {
         playerView = findViewById(R.id.playerView)
         btnIniciar = findViewById(R.id.btnIniciar)
         loadingBar = findViewById(R.id.loadingBar)
+        progressBarVideo = findViewById(R.id.progressBarVideo)
 
         player = ExoPlayer.Builder(this).build()
         playerView.player = player
@@ -58,6 +74,25 @@ class MainActivity : AppCompatActivity() {
             override fun onPlaybackStateChanged(state: Int) {
                 if (state == Player.STATE_ENDED) {
                     decidirProximoVideo()
+                } else if (state == Player.STATE_READY) {
+                    val duration = player.duration
+                    // Se o vídeo for maior que 8 minutos, a barra vai até 8 minutos
+                    // Se for menor, vai até o final do vídeo
+                    val maxProgress = if (duration > tempoCorteMs) tempoCorteMs else duration
+                    progressBarVideo.max = maxProgress.toInt()
+                    progressBarVideo.progress = 0
+                    
+                    // Inicia atualização da barra
+                    handlerProgresso.removeCallbacks(updateProgressoRunnable)
+                    handlerProgresso.post(updateProgressoRunnable)
+                }
+            }
+
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (isPlaying) {
+                    handlerProgresso.post(updateProgressoRunnable)
+                } else {
+                    handlerProgresso.removeCallbacks(updateProgressoRunnable)
                 }
             }
         })
@@ -157,8 +192,20 @@ class MainActivity : AppCompatActivity() {
         player.clearMediaItems()
         val mediaItem = MediaItem.fromUri("file://${arquivo.absolutePath}")
         player.setMediaItem(mediaItem)
+        player.setVideoScalingMode(C.VIDEO_SCALING_MODE_SCALE_TO_FIT)
         player.prepare()
         player.play()
+
+        // Garante que a barra apareça
+        progressBarVideo.visibility = View.VISIBLE
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_MEDIA_NEXT) {
+            decidirProximoVideo()
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
     }
 
     private fun decidirProximoVideo() {
@@ -183,6 +230,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         handlerCorte.removeCallbacksAndMessages(null)
+        handlerProgresso.removeCallbacks(updateProgressoRunnable)
         player.release()
     }
 }

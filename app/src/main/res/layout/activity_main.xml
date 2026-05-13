@@ -27,7 +27,17 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="gone"
-        app:resize_mode="fill"
-        app:surface_type="texture_view"
+        app:resize_mode="fit"
+        app:surface_type="surface_view"
         app:use_controller="false" />
+
+    <ProgressBar
+        android:id="@+id/progressBarVideo"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_gravity="bottom"
+        android:progressDrawable="@android:drawable/progress_horizontal"
+        android:progressTint="#FF0000"
+        android:visibility="gone" />
 </FrameLayout>
