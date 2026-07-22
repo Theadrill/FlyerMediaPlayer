@@ -100,6 +100,18 @@ class MainActivity : AppCompatActivity() {
         btnIniciar.setOnClickListener {
             iniciarSistema()
         }
+
+        val gestureDetector = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
+            override fun onDoubleTap(e: android.view.MotionEvent): Boolean {
+                abrirConfiguracoes()
+                return true
+            }
+        })
+
+        playerView.setOnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
+            true
+        }
     }
 
     private fun iniciarSistema() {
@@ -201,11 +213,42 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+            abrirConfiguracoes()
+            return true
+        }
         if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_MEDIA_NEXT) {
             decidirProximoVideo()
             return true
         }
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            val layoutSettings = findViewById<View>(R.id.layoutSettings)
+            if (layoutSettings.visibility == View.VISIBLE) {
+                layoutSettings.visibility = View.GONE
+                return true
+            }
+        }
         return super.onKeyDown(keyCode, event)
+    }
+
+    private fun abrirConfiguracoes() {
+        val layoutSettings = findViewById<View>(R.id.layoutSettings)
+        val switchAutoStart = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchAutoStart)
+        val btnFecharSettings = findViewById<Button>(R.id.btnFecharSettings)
+
+        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        switchAutoStart.isChecked = prefs.getBoolean("auto_start", false)
+
+        switchAutoStart.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("auto_start", isChecked).apply()
+        }
+
+        btnFecharSettings.setOnClickListener {
+            layoutSettings.visibility = View.GONE
+        }
+
+        layoutSettings.visibility = View.VISIBLE
+        switchAutoStart.requestFocus()
     }
 
     private fun decidirProximoVideo() {
