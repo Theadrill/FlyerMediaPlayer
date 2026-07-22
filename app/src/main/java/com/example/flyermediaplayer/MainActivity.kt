@@ -115,22 +115,39 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun iniciarSistema() {
-        val permission = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            Manifest.permission.READ_MEDIA_VIDEO
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            // Android 11+ (API 30+) ex: Galaxy A55
+            if (!android.os.Environment.isExternalStorageManager()) {
+                try {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                    intent.data = android.net.Uri.parse("package:$packageName")
+                    startActivity(intent)
+                    Toast.makeText(this, "Conceda a permissão para acessar os arquivos do Pen Drive", Toast.LENGTH_LONG).show()
+                } catch (e: Exception) {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                    startActivity(intent)
+                }
+                return
+            }
         } else {
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        }
+            // Android Antigo (ex: TV Box)
+            val permission = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                Manifest.permission.READ_MEDIA_VIDEO
+            } else {
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            }
 
-        if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(permission), 1)
-            return
+            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(permission), 1)
+                return
+            }
         }
 
         btnIniciar.visibility = View.GONE
         loadingBar.visibility = View.VISIBLE
 
         Thread {
-            val listas = UsbScanner.buscarVideosDoUsb()
+            val listas = UsbScanner.buscarVideosDoUsb(this)
             runOnUiThread {
                 loadingBar.visibility = View.GONE
                 listaMaria = listas.first
