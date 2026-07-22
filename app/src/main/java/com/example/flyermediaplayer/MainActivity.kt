@@ -30,18 +30,27 @@ class MainActivity : AppCompatActivity() {
     private lateinit var progressBarVideo: ProgressBar
 
     private var listaMaria = listOf<File>()
+    private var listaAtracao = listOf<File>()
     private var listaAleatoria = listOf<File>()
     
     // Filas para controle de repetição (Playlist)
     private var filaMaria = mutableListOf<File>()
+    private var filaAtracao = mutableListOf<File>()
     private var filaAleatoria = mutableListOf<File>()
 
-    private var tocandoMaria = false
-    private var videosAleatoriosTocados = 0
+    private enum class TipoVideoAtual { MARIA, ATRACAO, ALEATORIO }
+    private var tipoAtual = TipoVideoAtual.MARIA
 
-    // Cronômetro para cortar vídeos de futebol/bandas (8 minutos)
+    private var videosTocadosNoBloco = 0
+    private var qtdMariaConfig = 1
+    private var qtdAtracaoConfig = 1
+    private var qtdAleatoriosConfig = 2
+    private var tempoCorteMs = 8 * 60 * 1000L
+
+    private var modoAtracaoAtivoConfig = false
+    private var tocarAleatoriosModoAtracaoConfig = true
+
     private val handlerCorte = Handler(Looper.getMainLooper())
-    private val tempoCorteMs = 8 * 60 * 1000L
 
     private val handlerProgresso = Handler(Looper.getMainLooper())
     private val updateProgressoRunnable = object : Runnable {
@@ -76,13 +85,10 @@ class MainActivity : AppCompatActivity() {
                     decidirProximoVideo()
                 } else if (state == Player.STATE_READY) {
                     val duration = player.duration
-                    // Se o vídeo for maior que 8 minutos, a barra vai até 8 minutos
-                    // Se for menor, vai até o final do vídeo
                     val maxProgress = if (duration > tempoCorteMs) tempoCorteMs else duration
                     progressBarVideo.max = maxProgress.toInt()
                     progressBarVideo.progress = 0
                     
-                    // Inicia atualização da barra
                     handlerProgresso.removeCallbacks(updateProgressoRunnable)
                     handlerProgresso.post(updateProgressoRunnable)
                 }
@@ -97,8 +103,14 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
+        val btnConfiguracoes = findViewById<Button>(R.id.btnConfiguracoes)
+
         btnIniciar.setOnClickListener {
             iniciarSistema()
+        }
+
+        btnConfiguracoes.setOnClickListener {
+            abrirConfiguracoes()
         }
 
         val gestureDetector = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
@@ -116,7 +128,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun iniciarSistema() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            // Android 11+ (API 30+) ex: Galaxy A55
             if (!android.os.Environment.isExternalStorageManager()) {
                 try {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
@@ -130,7 +141,6 @@ class MainActivity : AppCompatActivity() {
                 return
             }
         } else {
-            // Android Antigo (ex: TV Box)
             val permission = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                 Manifest.permission.READ_MEDIA_VIDEO
             } else {
@@ -143,28 +153,54 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        btnIniciar.visibility = View.GONE
+        val layoutInicio = findViewById<View>(R.id.layoutInicio)
+        layoutInicio.visibility = View.GONE
         loadingBar.visibility = View.VISIBLE
 
         Thread {
-            val listas = UsbScanner.buscarVideosDoUsb(this)
+            val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+            val palavraChave = prefs.getString("nome_video_principal", "MARIA") ?: "MARIA"
+            val pastaAleatorios = prefs.getString("nome_pasta_aleatorios", "VIDEOS") ?: "VIDEOS"
+            modoAtracaoAtivoConfig = prefs.getBoolean("modo_atracao_ativo", false)
+            val videoAtracao = prefs.getString("video_atracao", "") ?: ""
+            tocarAleatoriosModoAtracaoConfig = prefs.getBoolean("tocar_aleatorios_atracao", true)
+
+            qtdMariaConfig = prefs.getInt("qtd_maria", 1).coerceAtLeast(1)
+            qtdAtracaoConfig = prefs.getInt("qtd_atracao", 1).coerceAtLeast(1)
+            qtdAleatoriosConfig = prefs.getInt("qtd_aleatorios", 2).coerceAtLeast(1)
+            val tempoMinutos = prefs.getInt("tempo_max_minutos", 8).coerceAtLeast(1)
+            tempoCorteMs = tempoMinutos * 60 * 1000L
+
+            val resultado = UsbScanner.buscarVideosDoUsb(this, palavraChave, pastaAleatorios, modoAtracaoAtivoConfig, videoAtracao)
             runOnUiThread {
                 loadingBar.visibility = View.GONE
-                listaMaria = listas.first
-                listaAleatoria = listas.second
+                listaMaria = resultado.first
+                listaAtracao = resultado.second
+                listaAleatoria = resultado.third
 
-                if (listaMaria.isEmpty()) {
-                    Toast.makeText(this, "Nenhum vídeo MARIA encontrado no USB!", Toast.LENGTH_LONG).show()
-                    btnIniciar.visibility = View.VISIBLE
+                val mariaVazio = listaMaria.isEmpty()
+                val atracaoVazio = modoAtracaoAtivoConfig && listaAtracao.isEmpty()
+                val aleatoriosVazio = (!modoAtracaoAtivoConfig || tocarAleatoriosModoAtracaoConfig) && listaAleatoria.isEmpty()
+
+                if (mariaVazio || atracaoVazio || aleatoriosVazio) {
+                    val mensagemErro = when {
+                        atracaoVazio -> "Erro Modo Atração: Vídeo/Pasta '$videoAtracao' não encontrado no USB!"
+                        mariaVazio -> "Erro: Nenhum vídeo principal '$palavraChave' foi encontrado no USB!"
+                        else -> "Erro: Nenhuma pasta '$pastaAleatorios' com vídeos foi encontrada no USB!"
+                    }
+                    Toast.makeText(this, mensagemErro, Toast.LENGTH_LONG).show()
+                    layoutInicio.visibility = View.VISIBLE
                     return@runOnUiThread
                 }
 
                 // Inicializa as filas embaralhadas
                 filaMaria = listaMaria.shuffled().toMutableList()
+                filaAtracao = listaAtracao.shuffled().toMutableList()
                 filaAleatoria = listaAleatoria.shuffled().toMutableList()
 
                 playerView.visibility = View.VISIBLE
-                tocarVideoMaria()
+                videosTocadosNoBloco = 0
+                tocarProximoVideoPrincipal()
             }
         }.start()
     }
@@ -178,14 +214,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun tocarVideoMaria() {
-        tocandoMaria = true
-        videosAleatoriosTocados = 0
-        
-        // Cancela qualquer corte pendente (Flyer da Maria toca inteiro)
+    private fun tocarProximoVideoPrincipal() {
+        tipoAtual = TipoVideoAtual.MARIA
         handlerCorte.removeCallbacksAndMessages(null)
 
-        // Se a fila acabou, recarrega e embaralha de novo
         if (filaMaria.isEmpty()) {
             if (listaMaria.isEmpty()) return
             filaMaria = listaMaria.shuffled().toMutableList()
@@ -195,14 +227,26 @@ class MainActivity : AppCompatActivity() {
         tocarArquivo(video)
     }
 
-    private fun tocarVideoAleatorio() {
-        tocandoMaria = false
+    private fun tocarProximoVideoAtracao() {
+        tipoAtual = TipoVideoAtual.ATRACAO
+        handlerCorte.removeCallbacksAndMessages(null)
+
+        if (filaAtracao.isEmpty()) {
+            if (listaAtracao.isEmpty()) return
+            filaAtracao = listaAtracao.shuffled().toMutableList()
+        }
+
+        val video = filaAtracao.removeAt(0)
+        tocarArquivo(video)
+    }
+
+    private fun tocarProximoVideoAleatorio() {
+        tipoAtual = TipoVideoAtual.ALEATORIO
         if (listaAleatoria.isEmpty()) {
-            tocarVideoMaria()
+            tocarProximoVideoPrincipal()
             return
         }
 
-        // Se a fila acabou, recarrega e embaralha de novo
         if (filaAleatoria.isEmpty()) {
             filaAleatoria = listaAleatoria.shuffled().toMutableList()
         }
@@ -210,7 +254,6 @@ class MainActivity : AppCompatActivity() {
         val videoSorteado = filaAleatoria.removeAt(0)
         tocarArquivo(videoSorteado)
 
-        // Inicia o cronômetro para cortar o vídeo em 8 minutos
         handlerCorte.removeCallbacksAndMessages(null)
         handlerCorte.postDelayed({
             decidirProximoVideo()
@@ -224,8 +267,6 @@ class MainActivity : AppCompatActivity() {
         player.setVideoScalingMode(C.VIDEO_SCALING_MODE_SCALE_TO_FIT)
         player.prepare()
         player.play()
-
-        // Garante que a barra apareça
         progressBarVideo.visibility = View.VISIBLE
     }
 
@@ -239,9 +280,15 @@ class MainActivity : AppCompatActivity() {
             return true
         }
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            val layoutSettings = findViewById<View>(R.id.layoutSettings)
-            if (layoutSettings.visibility == View.VISIBLE) {
-                layoutSettings.visibility = View.GONE
+            val layoutModalConfirmacao = findViewById<View>(R.id.layoutModalConfirmacao)
+            if (layoutModalConfirmacao.visibility == View.VISIBLE) {
+                layoutModalConfirmacao.visibility = View.GONE
+                return true
+            }
+
+            val layoutSettingsContainer = findViewById<View>(R.id.layoutSettingsContainer)
+            if (layoutSettingsContainer.visibility == View.VISIBLE) {
+                layoutSettingsContainer.visibility = View.GONE
                 return true
             }
         }
@@ -249,40 +296,213 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun abrirConfiguracoes() {
-        val layoutSettings = findViewById<View>(R.id.layoutSettings)
+        val layoutSettingsContainer = findViewById<View>(R.id.layoutSettingsContainer)
         val switchAutoStart = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchAutoStart)
+        
+        val switchModoAtracao = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchModoAtracao)
+        val layoutModoAtracaoCampos = findViewById<View>(R.id.layoutModoAtracaoCampos)
+        val editVideoAtracao = findViewById<android.widget.EditText>(R.id.editVideoAtracao)
+        val editQtdAtracao = findViewById<android.widget.EditText>(R.id.editQtdAtracao)
+        val switchTocarAleatoriosAtracao = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchTocarAleatoriosAtracao)
+
+        val editNomeMaria = findViewById<android.widget.EditText>(R.id.editNomeMaria)
+        val editPastaAleatorios = findViewById<android.widget.EditText>(R.id.editPastaAleatorios)
+        val editQtdMaria = findViewById<android.widget.EditText>(R.id.editQtdMaria)
+        val editQtdAleatorios = findViewById<android.widget.EditText>(R.id.editQtdAleatorios)
+        val editTempoMaxMinutos = findViewById<android.widget.EditText>(R.id.editTempoMaxMinutos)
+        val btnSalvarSettings = findViewById<Button>(R.id.btnSalvarSettings)
         val btnFecharSettings = findViewById<Button>(R.id.btnFecharSettings)
 
         val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
         switchAutoStart.isChecked = prefs.getBoolean("auto_start", false)
 
-        switchAutoStart.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("auto_start", isChecked).apply()
+        val modoAtracaoAtivo = prefs.getBoolean("modo_atracao_ativo", false)
+        switchModoAtracao.isChecked = modoAtracaoAtivo
+        layoutModoAtracaoCampos.visibility = if (modoAtracaoAtivo) View.VISIBLE else View.GONE
+        editVideoAtracao.setText(prefs.getString("video_atracao", ""))
+        editQtdAtracao.setText(prefs.getInt("qtd_atracao", 1).toString())
+        switchTocarAleatoriosAtracao.isChecked = prefs.getBoolean("tocar_aleatorios_atracao", true)
+
+        switchModoAtracao.setOnCheckedChangeListener { _, isChecked ->
+            layoutModoAtracaoCampos.visibility = if (isChecked) View.VISIBLE else View.GONE
         }
+
+        editNomeMaria.setText(prefs.getString("nome_video_principal", "MARIA"))
+        editPastaAleatorios.setText(prefs.getString("nome_pasta_aleatorios", "VIDEOS"))
+        editQtdMaria.setText(prefs.getInt("qtd_maria", 1).toString())
+        editQtdAleatorios.setText(prefs.getInt("qtd_aleatorios", 2).toString())
+        editTempoMaxMinutos.setText(prefs.getInt("tempo_max_minutos", 8).toString())
 
         btnFecharSettings.setOnClickListener {
-            layoutSettings.visibility = View.GONE
+            layoutSettingsContainer.visibility = View.GONE
         }
 
-        layoutSettings.visibility = View.VISIBLE
-        switchAutoStart.requestFocus()
+        btnSalvarSettings.setOnClickListener {
+            val novoModoAtracao = switchModoAtracao.isChecked
+            val novoVideoAtracao = editVideoAtracao.text.toString().trim().uppercase()
+            val novaQtdAtracao = editQtdAtracao.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: 1
+            val novoTocarAleatoriosAtracao = switchTocarAleatoriosAtracao.isChecked
+
+            val novoNome = editNomeMaria.text.toString().trim().uppercase().ifEmpty { "MARIA" }
+            val novaPasta = editPastaAleatorios.text.toString().trim().uppercase().ifEmpty { "VIDEOS" }
+            val novaQtdMaria = editQtdMaria.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: 1
+            val novaQtdAleatorios = editQtdAleatorios.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: 2
+            val novoTempo = editTempoMaxMinutos.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: 8
+            val autoStart = switchAutoStart.isChecked
+
+            testarESalvarConfiguracoes(
+                novoNome, novaPasta, novaQtdMaria, novaQtdAleatorios, novoTempo, autoStart,
+                novoModoAtracao, novoVideoAtracao, novaQtdAtracao, novoTocarAleatoriosAtracao
+            )
+        }
+
+        layoutSettingsContainer.visibility = View.VISIBLE
+        btnSalvarSettings.requestFocus()
+    }
+
+    private fun testarESalvarConfiguracoes(
+        novoNome: String,
+        novaPasta: String,
+        novaQtdMaria: Int,
+        novaQtdAleatorios: Int,
+        novoTempo: Int,
+        autoStart: Boolean,
+        modoAtracaoAtivo: Boolean,
+        videoAtracao: String,
+        novaQtdAtracao: Int,
+        tocarAleatoriosAtracao: Boolean
+    ) {
+        val layoutModalConfirmacao = findViewById<View>(R.id.layoutModalConfirmacao)
+        val txtTituloModal = findViewById<android.widget.TextView>(R.id.txtTituloModal)
+        val txtMensagemModal = findViewById<android.widget.TextView>(R.id.txtMensagemModal)
+        val loadingBarModal = findViewById<View>(R.id.loadingBarModal)
+        val btnSalvarMesmoAssimModal = findViewById<Button>(R.id.btnSalvarMesmoAssimModal)
+        val btnFecharModal = findViewById<Button>(R.id.btnFecharModal)
+
+        txtTituloModal.text = "Verificando USB..."
+        txtMensagemModal.text = "Escaneando arquivos no USB..."
+        loadingBarModal.visibility = View.VISIBLE
+        btnSalvarMesmoAssimModal.visibility = View.GONE
+        btnFecharModal.visibility = View.GONE
+        layoutModalConfirmacao.visibility = View.VISIBLE
+
+        val salvarDados = {
+            val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+            prefs.edit()
+                .putBoolean("auto_start", autoStart)
+                .putBoolean("modo_atracao_ativo", modoAtracaoAtivo)
+                .putString("video_atracao", videoAtracao)
+                .putInt("qtd_atracao", novaQtdAtracao)
+                .putBoolean("tocar_aleatorios_atracao", tocarAleatoriosAtracao)
+                .putString("nome_video_principal", novoNome)
+                .putString("nome_pasta_aleatorios", novaPasta)
+                .putInt("qtd_maria", novaQtdMaria)
+                .putInt("qtd_aleatorios", novaQtdAleatorios)
+                .putInt("tempo_max_minutos", novoTempo)
+                .apply()
+
+            modoAtracaoAtivoConfig = modoAtracaoAtivo
+            qtdAtracaoConfig = novaQtdAtracao
+            tocarAleatoriosModoAtracaoConfig = tocarAleatoriosAtracao
+            qtdMariaConfig = novaQtdMaria
+            qtdAleatoriosConfig = novaQtdAleatorios
+            tempoCorteMs = novoTempo * 60 * 1000L
+
+            layoutModalConfirmacao.visibility = View.GONE
+            findViewById<View>(R.id.layoutSettingsContainer).visibility = View.GONE
+            Toast.makeText(this, "Configurações salvas com sucesso!", Toast.LENGTH_SHORT).show()
+        }
+
+        Thread {
+            val resultado = UsbScanner.buscarVideosDoUsb(this, novoNome, novaPasta, modoAtracaoAtivo, videoAtracao)
+            runOnUiThread {
+                loadingBarModal.visibility = View.GONE
+                btnFecharModal.visibility = View.VISIBLE
+
+                val mariaVazio = resultado.first.isEmpty()
+                val atracaoVazio = modoAtracaoAtivo && resultado.second.isEmpty()
+                val aleatoriosVazio = (!modoAtracaoAtivo || tocarAleatoriosAtracao) && resultado.third.isEmpty()
+
+                if (!mariaVazio && !atracaoVazio && !aleatoriosVazio) {
+                    salvarDados()
+                } else {
+                    txtTituloModal.text = "Atenção ao salvar"
+                    val mensagemErro = when {
+                        atracaoVazio -> "Vídeo/Pasta da atração '$videoAtracao' não foi encontrado no USB."
+                        mariaVazio -> "Nenhum vídeo principal '$novoNome' foi encontrado no USB."
+                        else -> "Nenhuma pasta '$novaPasta' com vídeos foi encontrada no USB."
+                    }
+                    txtMensagemModal.text = "$mensagemErro\n\nDeseja salvar mesmo assim?"
+                    btnSalvarMesmoAssimModal.visibility = View.VISIBLE
+
+                    btnSalvarMesmoAssimModal.setOnClickListener {
+                        salvarDados()
+                    }
+
+                    btnFecharModal.setOnClickListener {
+                        layoutModalConfirmacao.visibility = View.GONE
+                    }
+                    btnFecharModal.requestFocus()
+                }
+            }
+        }.start()
     }
 
     private fun decidirProximoVideo() {
-        // Para o cronômetro de corte para evitar execução duplicada
         handlerCorte.removeCallbacksAndMessages(null)
+        videosTocadosNoBloco++
 
-        if (tocandoMaria) {
-            // Se acabou de tocar um MARIA (flyer), vai para o primeiro aleatório
-            tocarVideoAleatorio()
+        if (modoAtracaoAtivoConfig) {
+            // MODO ATRAÇÃO ATIVO
+            when (tipoAtual) {
+                TipoVideoAtual.MARIA -> {
+                    if (videosTocadosNoBloco < qtdMariaConfig) {
+                        tocarProximoVideoPrincipal()
+                    } else {
+                        videosTocadosNoBloco = 0
+                        tocarProximoVideoAtracao()
+                    }
+                }
+                TipoVideoAtual.ATRACAO -> {
+                    if (videosTocadosNoBloco < qtdAtracaoConfig) {
+                        tocarProximoVideoAtracao()
+                    } else {
+                        videosTocadosNoBloco = 0
+                        if (tocarAleatoriosModoAtracaoConfig && listaAleatoria.isNotEmpty()) {
+                            tocarProximoVideoAleatorio()
+                        } else {
+                            tocarProximoVideoPrincipal()
+                        }
+                    }
+                }
+                TipoVideoAtual.ALEATORIO -> {
+                    if (videosTocadosNoBloco < qtdAleatoriosConfig && listaAleatoria.isNotEmpty()) {
+                        tocarProximoVideoAleatorio()
+                    } else {
+                        videosTocadosNoBloco = 0
+                        tocarProximoVideoPrincipal()
+                    }
+                }
+            }
         } else {
-            videosAleatoriosTocados++
-            
-            // Toca no máximo 2 aleatórios antes de voltar para o MARIA
-            if (videosAleatoriosTocados >= 2) {
-                tocarVideoMaria()
-            } else {
-                tocarVideoAleatorio()
+            // MODO NORMAL (MARIA -> ALEATÓRIOS)
+            when (tipoAtual) {
+                TipoVideoAtual.MARIA -> {
+                    if (videosTocadosNoBloco < qtdMariaConfig) {
+                        tocarProximoVideoPrincipal()
+                    } else {
+                        videosTocadosNoBloco = 0
+                        tocarProximoVideoAleatorio()
+                    }
+                }
+                else -> {
+                    if (videosTocadosNoBloco < qtdAleatoriosConfig && listaAleatoria.isNotEmpty()) {
+                        tocarProximoVideoAleatorio()
+                    } else {
+                        videosTocadosNoBloco = 0
+                        tocarProximoVideoPrincipal()
+                    }
+                }
             }
         }
     }

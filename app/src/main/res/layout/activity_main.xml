@@ -5,15 +5,34 @@
     android:layout_height="match_parent"
     android:layout_width="match_parent">
 
-    <Button
-        android:id="@+id/btnIniciar"
+    <LinearLayout
+        android:id="@+id/layoutInicio"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:focusable="true"
-        android:padding="32dp"
-        android:text="INICIAR SISTEMA"
-        android:textSize="24sp"/>
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <Button
+            android:id="@+id/btnIniciar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:focusable="true"
+            android:padding="28dp"
+            android:text="INICIAR SISTEMA"
+            android:textSize="24sp"/>
+
+        <Button
+            android:id="@+id/btnConfiguracoes"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:focusable="true"
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="12dp"
+            android:text="CONFIGURAÇÕES"
+            android:textSize="16sp"/>
+    </LinearLayout>
 
     <ProgressBar
         android:id="@+id/loadingBar"
@@ -41,14 +60,15 @@
         android:progressTint="#FF0000"
         android:visibility="gone" />
 
+    <!-- PAINEL DE CONFIGURAÇÕES -->
     <LinearLayout
-        android:id="@+id/layoutSettings"
-        android:layout_width="320dp"
-        android:layout_height="wrap_content"
+        android:id="@+id/layoutSettingsContainer"
+        android:layout_width="380dp"
+        android:layout_height="480dp"
         android:layout_gravity="center"
-        android:background="#DD111111"
+        android:background="#EE111111"
         android:orientation="vertical"
-        android:padding="24dp"
+        android:padding="20dp"
         android:visibility="gone">
 
         <TextView
@@ -58,25 +78,355 @@
             android:textColor="#FFFFFF"
             android:textSize="22sp"
             android:textStyle="bold"
-            android:layout_marginBottom="20dp" />
+            android:layout_marginBottom="12dp" />
 
-        <androidx.appcompat.widget.SwitchCompat
-            android:id="@+id/switchAutoStart"
+        <!-- CONTEÚDO ROLÁVEL DAS CONFIGURAÇÕES -->
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchAutoStart"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Iniciar com a TV Box"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:focusable="true"
+                    android:focusedByDefault="true"
+                    android:padding="6dp" />
+
+                <!-- MODO ATRAÇÃO -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#44FFFFFF"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="12dp" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchModoAtracao"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="MODO ATRAÇÃO"
+                    android:textColor="#FFD700"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:focusable="true"
+                    android:padding="6dp" />
+
+                <LinearLayout
+                    android:id="@+id/layoutModoAtracaoCampos"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Vídeo ou Caminho da Atração:"
+                        android:textColor="#CCCCCC"
+                        android:textSize="13sp"
+                        android:layout_marginTop="10dp"
+                        android:layout_marginBottom="2dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Digite o nome do vídeo ou o caminho (ex: GRUPO XXX ou PASTA/GRUPO XXX)"
+                        android:textColor="#88FFFFFF"
+                        android:textSize="11sp"
+                        android:layout_marginBottom="4dp" />
+
+                    <EditText
+                        android:id="@+id/editVideoAtracao"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="#22FFFFFF"
+                        android:hint="Ex: GRUPO REVELACAO"
+                        android:textColorHint="#88FFFFFF"
+                        android:textColor="#FFFFFF"
+                        android:textSize="15sp"
+                        android:padding="8dp"
+                        android:inputType="textCapCharacters"
+                        android:singleLine="true"
+                        android:focusable="true" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Qtd. de vídeos da atração por bloco:"
+                        android:textColor="#CCCCCC"
+                        android:textSize="13sp"
+                        android:layout_marginTop="10dp"
+                        android:layout_marginBottom="4dp" />
+
+                    <EditText
+                        android:id="@+id/editQtdAtracao"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="#22FFFFFF"
+                        android:hint="Ex: 1"
+                        android:textColorHint="#88FFFFFF"
+                        android:textColor="#FFFFFF"
+                        android:textSize="15sp"
+                        android:padding="8dp"
+                        android:inputType="number"
+                        android:singleLine="true"
+                        android:focusable="true" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/switchTocarAleatoriosAtracao"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="TOCAR VÍDEOS ALEATÓRIOS"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp"
+                        android:focusable="true"
+                        android:layout_marginTop="10dp"
+                        android:padding="6dp" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#44FFFFFF"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="8dp" />
+
+                <!-- Nome / palavra-chave do vídeo principal -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Palavra-chave do vídeo principal:"
+                    android:textColor="#CCCCCC"
+                    android:textSize="13sp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="4dp" />
+
+                <EditText
+                    android:id="@+id/editNomeMaria"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="#22FFFFFF"
+                    android:hint="Ex: MARIA"
+                    android:textColorHint="#88FFFFFF"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp"
+                    android:padding="8dp"
+                    android:inputType="textCapCharacters"
+                    android:singleLine="true"
+                    android:focusable="true" />
+
+                <!-- Nome da pasta dos vídeos aleatórios -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Pasta dos vídeos aleatórios:"
+                    android:textColor="#CCCCCC"
+                    android:textSize="13sp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="4dp" />
+
+                <EditText
+                    android:id="@+id/editPastaAleatorios"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="#22FFFFFF"
+                    android:hint="Ex: VIDEOS"
+                    android:textColorHint="#88FFFFFF"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp"
+                    android:padding="8dp"
+                    android:inputType="textCapCharacters"
+                    android:singleLine="true"
+                    android:focusable="true" />
+
+                <!-- Qtd de vídeos principais por bloco -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Qtd. de vídeos principais por bloco:"
+                    android:textColor="#CCCCCC"
+                    android:textSize="13sp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="4dp" />
+
+                <EditText
+                    android:id="@+id/editQtdMaria"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="#22FFFFFF"
+                    android:hint="Ex: 1"
+                    android:textColorHint="#88FFFFFF"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp"
+                    android:padding="8dp"
+                    android:inputType="number"
+                    android:singleLine="true"
+                    android:focusable="true" />
+
+                <!-- Qtd de vídeos aleatórios por bloco -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Qtd. de vídeos aleatórios por bloco:"
+                    android:textColor="#CCCCCC"
+                    android:textSize="13sp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="4dp" />
+
+                <EditText
+                    android:id="@+id/editQtdAleatorios"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="#22FFFFFF"
+                    android:hint="Ex: 2"
+                    android:textColorHint="#88FFFFFF"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp"
+                    android:padding="8dp"
+                    android:inputType="number"
+                    android:singleLine="true"
+                    android:focusable="true" />
+
+                <!-- Tempo máximo por vídeo aleatório (em minutos) -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Tempo máx. vídeo aleatório (minutos):"
+                    android:textColor="#CCCCCC"
+                    android:textSize="13sp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="4dp" />
+
+                <EditText
+                    android:id="@+id/editTempoMaxMinutos"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="#22FFFFFF"
+                    android:hint="Ex: 8"
+                    android:textColorHint="#88FFFFFF"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp"
+                    android:padding="8dp"
+                    android:inputType="number"
+                    android:singleLine="true"
+                    android:focusable="true" />
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- BARRA FIXA DE BOTÕES INFERIORES DA CONFIG -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Iniciar com a TV Box"
+            android:layout_marginTop="14dp"
+            android:orientation="horizontal"
+            android:weightSum="2">
+
+            <Button
+                android:id="@+id/btnSalvarSettings"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:backgroundTint="#2E7D32"
+                android:focusable="true"
+                android:text="SALVAR"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnFecharSettings"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:backgroundTint="#C62828"
+                android:focusable="true"
+                android:text="FECHAR"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- MODAL DE CONFIRMAÇÃO / DIAGNÓSTICO DO SCAN -->
+    <LinearLayout
+        android:id="@+id/layoutModalConfirmacao"
+        android:layout_width="340dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="#FA1A1A1A"
+        android:elevation="10dp"
+        android:orientation="vertical"
+        android:padding="20dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/txtTituloModal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Verificação dos Arquivos"
             android:textColor="#FFFFFF"
             android:textSize="18sp"
-            android:focusable="true"
-            android:focusedByDefault="true"
-            android:padding="8dp" />
+            android:textStyle="bold"
+            android:layout_marginBottom="10dp" />
 
-        <Button
-            android:id="@+id/btnFecharSettings"
+        <TextView
+            android:id="@+id/txtMensagemModal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:focusable="true"
-            android:text="Fechar" />
+            android:text="Resultado do teste no USB..."
+            android:textColor="#DDDDDD"
+            android:textSize="14sp"
+            android:layout_marginBottom="20dp" />
+
+        <ProgressBar
+            android:id="@+id/loadingBarModal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/layoutBotoesModal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="2">
+
+            <Button
+                android:id="@+id/btnSalvarMesmoAssimModal"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:backgroundTint="#2E7D32"
+                android:focusable="true"
+                android:text="Salvar Mesmo Assim"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/btnFecharModal"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:backgroundTint="#C62828"
+                android:focusable="true"
+                android:text="FECHAR"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp" />
+        </LinearLayout>
     </LinearLayout>
 </FrameLayout>
