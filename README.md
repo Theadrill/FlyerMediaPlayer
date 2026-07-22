@@ -2,7 +2,7 @@
 
 **Flyer Media Player** é um reprodutor de mídias desenvolvido especialmente para **TV Boxes Android, TVs e dispositivos móveis**, ideal para exibição autônoma de cartazes/flyers de eventos, atrações musicais e vídeos institucionais em bares, casas noturnas e estabelecimentos comerciais.
 
-> 💡 **Modo de Uso Simples:** Configure a palavra-chave dos vídeos do seu estabelecimento, coloque os vídeos aleatórios na pasta `VIDEOS` do Pen Drive e o aplicativo assume o controle total da reprodução em ciclo contínuo!
+**Uso:** Configure a palavra-chave dos vídeos do seu estabelecimento, coloque os vídeos aleatórios na pasta **VIDEOS** do Pen Drive e o aplicativo assume o controle total da reprodução em ciclo contínuo!
 
 ---
 
