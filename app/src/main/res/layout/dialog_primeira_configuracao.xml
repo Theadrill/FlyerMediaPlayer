@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="340dp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@drawable/btn_config_bg"
+    android:gravity="center">
+
+    <!-- PASSO 1: COMO ORGANIZAR O PEN DRIVE -->
+    <LinearLayout
+        android:id="@+id/passo1Container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <ImageView
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/app_logo"
+                android:contentDescription="Ícone do App"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Como Organizar o Pen Drive 📁"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Card Raiz -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#0F172A"
+            android:padding="12dp"
+            android:layout_marginBottom="10dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="💾 1. Raiz do Pen Drive (Fora de pastas):"
+                android:textColor="#38BDF8"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Coloque os vídeos dos seus Flyers Principais soltos no Pen Drive (ex: MARIA_SEXTA.mp4)."
+                android:textColor="#94A3B8"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- Card Pasta VIDEOS -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#0F172A"
+            android:padding="12dp"
+            android:layout_marginBottom="20dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📁 2. Pasta 'VIDEOS':"
+                android:textColor="#34D399"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Crie uma pasta chamada VIDEOS no Pen Drive e coloque dentro todos os demais vídeos aleatórios."
+                android:textColor="#94A3B8"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnPasso1Proximo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/btn_iniciar_bg"
+            app:backgroundTint="@null"
+            android:focusable="true"
+            android:paddingVertical="12dp"
+            android:text="ENTENDI, CONTINUAR ➔"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- PASSO 2: CONFIGURAR PALAVRA-CHAVE -->
+    <LinearLayout
+        android:id="@+id/passo2Container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <ImageView
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/app_logo"
+                android:contentDescription="Ícone do App"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Palavra-chave dos Flyers 🏷️"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Digite o termo que o app deve procurar no nome dos vídeos dos Flyers na raiz do Pen Drive:"
+            android:textColor="#CBD5E1"
+            android:textSize="13sp"
+            android:gravity="center"
+            android:layout_marginBottom="16dp" />
+
+        <EditText
+            android:id="@+id/etPrimeiraPalavraChave"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#0F172A"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:padding="12dp"
+            android:hint="Ex: MARIA, PROMO, SEXTA"
+            android:textColorHint="#64748B"
+            android:singleLine="true"
+            android:imeOptions="actionDone"
+            android:focusable="true"
+            android:layout_marginBottom="20dp" />
+
+        <Button
+            android:id="@+id/btnSalvarPrimeiraConfig"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/btn_iniciar_bg"
+            app:backgroundTint="@null"
+            android:focusable="true"
+            android:paddingVertical="12dp"
+            android:text="SALVAR E FINALIZAR"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+</LinearLayout>

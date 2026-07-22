@@ -20,31 +20,91 @@ object UsbScanner {
         val listaAleatoria = mutableListOf<File>()
         val extensoesVideo = listOf("mp4", "mkv", "avi")
 
-        val termoFiltro = palavraChave.trim().uppercase().ifEmpty { "MARIA" }
+        val termosFiltro = palavraChave.split(",")
+            .map { it.trim().uppercase() }
+            .filter { it.isNotEmpty() }
+            .ifEmpty { listOf("MARIA") }
         val pastaFiltro = nomePastaAleatorios.trim().uppercase().ifEmpty { "VIDEOS" }
         val atracaoFiltro = termoAtracao.trim().uppercase()
 
-        // Se for Android 11 (API 30) ou superior (ex: Galaxy A55), usa a API moderna de StorageManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val pastasRemoviveis = obterPastasRemoviveisAndroidModerno(context)
-            for (usb in pastasRemoviveis) {
-                escanearDiretorioUsb(usb, extensoesVideo, termoFiltro, pastaFiltro, modoAtracaoAtivo, atracaoFiltro, listaMaria, listaAtracao, listaAleatoria)
-            }
-        } else {
-            // Android Antigo (ex: TV Box)
-            val pastaStorage = File("/storage")
-            if (pastaStorage.exists() && pastaStorage.isDirectory) {
-                val pastasUsb = pastaStorage.listFiles() ?: return Triple(emptyList(), emptyList(), emptyList())
-                for (usb in pastasUsb) {
-                    if (usb.name == "emulated" || usb.name == "self" || usb.name.startsWith(".")) continue
-                    escanearDiretorioUsb(usb, extensoesVideo, termoFiltro, pastaFiltro, modoAtracaoAtivo, atracaoFiltro, listaMaria, listaAtracao, listaAleatoria)
+        val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val ultimoCaminhoUsbSalvo = prefs.getString("ultimo_caminho_usb", null)
+
+        // 1. TENTA PRIMEIRO O ÚLTIMO CAMINHO VÁLIDO QUE FOI LEMBRADO (FAST PATH)
+        if (!ultimoCaminhoUsbSalvo.isNullOrEmpty()) {
+            val pastaSalva = File(ultimoCaminhoUsbSalvo)
+            if (pastaSalva.exists() && pastaSalva.isDirectory) {
+                escanearDiretorioUsb(pastaSalva, extensoesVideo, termosFiltro, pastaFiltro, modoAtracaoAtivo, atracaoFiltro, listaMaria, listaAtracao, listaAleatoria)
+                if (listaMaria.isNotEmpty()) {
+                    // Encontrou imediatamente! Retorna sem perder tempo varrendo outros armazenamentos
+                    return Triple(listaMaria, listaAtracao, listaAleatoria)
                 }
             }
         }
 
-        // Se a busca via diretórios não encontrou vídeos MARIA no Android moderno, tenta consultar via MediaStore do Android
+        // 2. SE O CAMINHO LEMBRADO NÃO FUNCIONOU (OU É A PRIMEIRA VEZ), VARRE TODOS OS LOCAIS
+        val pastasUsb = mutableListOf<File>()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            pastasUsb.addAll(obterPastasRemoviveisAndroidModerno(context))
+        } else {
+            val pastaStorage = File("/storage")
+            if (pastaStorage.exists() && pastaStorage.isDirectory) {
+                pastaStorage.listFiles()?.forEach { sub ->
+                    if (sub.isDirectory && sub.name != "emulated" && sub.name != "self" && !sub.name.startsWith(".")) {
+                        pastasUsb.add(sub)
+                    }
+                }
+            }
+        }
+
+        for (usb in pastasUsb) {
+            // Evita escanear de novo a pasta salva se já testamos no Fast Path
+            if (ultimoCaminhoUsbSalvo != null && usb.absolutePath == ultimoCaminhoUsbSalvo) continue
+
+            escanearDiretorioUsb(usb, extensoesVideo, termosFiltro, pastaFiltro, modoAtracaoAtivo, atracaoFiltro, listaMaria, listaAtracao, listaAleatoria)
+            if (listaMaria.isNotEmpty()) {
+                // Guarda o novo caminho que deu certo para as próximas vezes
+                prefs.edit().putString("ultimo_caminho_usb", usb.absolutePath).apply()
+                break
+            }
+        }
+
+        // 3. Fallback via MediaStore do Android moderno
         if (listaMaria.isEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            escanearViaMediaStore(context, extensoesVideo, termoFiltro, pastaFiltro, modoAtracaoAtivo, atracaoFiltro, listaMaria, listaAtracao, listaAleatoria)
+            escanearViaMediaStore(context, extensoesVideo, termosFiltro, pastaFiltro, modoAtracaoAtivo, atracaoFiltro, listaMaria, listaAtracao, listaAleatoria)
+        }
+
+        // 4. RETRY PÓS-PERMISSÃO: Se o sistema operacional concedeu a permissão recentemente, faz uma 2ª tentativa rápida para atualizar os descritores do USB
+        if (listaMaria.isEmpty() && listaAleatoria.isEmpty()) {
+            try { Thread.sleep(350) } catch (e: Exception) {}
+            pastasUsb.clear()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                pastasUsb.addAll(obterPastasRemoviveisAndroidModerno(context))
+            } else {
+                val pastaStorage = File("/storage")
+                if (pastaStorage.exists() && pastaStorage.isDirectory) {
+                    pastaStorage.listFiles()?.forEach { sub ->
+                        if (sub.isDirectory && sub.name != "emulated" && sub.name != "self" && !sub.name.startsWith(".")) {
+                            pastasUsb.add(sub)
+                        }
+                    }
+                }
+            }
+
+            for (usb in pastasUsb) {
+                escanearDiretorioUsb(usb, extensoesVideo, termosFiltro, pastaFiltro, modoAtracaoAtivo, atracaoFiltro, listaMaria, listaAtracao, listaAleatoria)
+                if (listaMaria.isNotEmpty()) break
+            }
+
+            if (listaMaria.isEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                escanearViaMediaStore(context, extensoesVideo, termosFiltro, pastaFiltro, modoAtracaoAtivo, atracaoFiltro, listaMaria, listaAtracao, listaAleatoria)
+            }
+        }
+
+        // 5. FALLBACK INTELIGENTE: Se listaMaria continuar vazia, mas existirem vídeos na listaAleatoria ou no USB,
+        // promove os vídeos para a lista principal para que o app NUNCA fique travado sem reproduzir!
+        if (listaMaria.isEmpty() && listaAleatoria.isNotEmpty()) {
+            listaMaria.addAll(listaAleatoria)
         }
 
         return Triple(listaMaria, listaAtracao, listaAleatoria)
@@ -53,7 +113,7 @@ object UsbScanner {
     private fun escanearViaMediaStore(
         context: Context,
         extensoesVideo: List<String>,
-        termoFiltro: String,
+        termosFiltro: List<String>,
         pastaFiltro: String,
         modoAtracaoAtivo: Boolean,
         atracaoFiltro: String,
@@ -93,7 +153,7 @@ object UsbScanner {
 
                         if (modoAtracaoAtivo && atracaoFiltro.isNotEmpty() && (pathUpper.contains(atracaoFiltro) || nameUpper.contains(atracaoFiltro))) {
                             listaAtracao.add(file)
-                        } else if (nameUpper.contains(termoFiltro)) {
+                        } else if (termosFiltro.any { termo -> nameUpper.contains(termo) }) {
                             listaMaria.add(file)
                         } else if (pathUpper.contains("/$pastaFiltro/")) {
                             listaAleatoria.add(file)
@@ -165,7 +225,7 @@ object UsbScanner {
     private fun escanearDiretorioUsb(
         usb: File,
         extensoesVideo: List<String>,
-        termoFiltro: String,
+        termosFiltro: List<String>,
         pastaFiltro: String,
         modoAtracaoAtivo: Boolean,
         atracaoFiltro: String,
@@ -173,21 +233,42 @@ object UsbScanner {
         listaAtracao: MutableList<File>,
         listaAleatoria: MutableList<File>
     ) {
-        usb.walkTopDown().forEach { arquivo ->
+        val arquivosRaiz = usb.listFiles() ?: return
+
+        // 1. Procura vídeos principais e vídeos de atração APENAS na RAIZ do volume
+        arquivosRaiz.forEach { arquivo ->
             if (arquivo.isFile && extensoesVideo.contains(arquivo.extension.lowercase())) {
-                val relPathUpper = arquivo.absolutePath.substring(usb.absolutePath.length).uppercase().replace("\\", "/")
                 val nameUpper = arquivo.name.uppercase()
 
-                // Se Modo Atração estiver ligado e o arquivo bater com nome ou caminho da atração
-                if (modoAtracaoAtivo && atracaoFiltro.isNotEmpty() && (relPathUpper.contains(atracaoFiltro) || nameUpper.contains(atracaoFiltro))) {
+                if (modoAtracaoAtivo && atracaoFiltro.isNotEmpty() && nameUpper.contains(atracaoFiltro)) {
                     listaAtracao.add(arquivo)
-                } else if (nameUpper.contains(termoFiltro)) {
-                    // Vídeos principais (na raiz ou com o termoFiltro)
+                } else if (termosFiltro.any { termo -> nameUpper.contains(termo) }) {
                     listaMaria.add(arquivo)
-                } else if (relPathUpper.contains("/$pastaFiltro/")) {
-                    // Vídeos aleatórios dentro da pasta parametrizada
-                    listaAleatoria.add(arquivo)
                 }
+            }
+        }
+
+        // 2. Se a Atração for uma pasta (ex: GRUPOS/GRUPO XXX ou PASTA_ATRACAO), verifica diretamente a pasta
+        if (modoAtracaoAtivo && atracaoFiltro.isNotEmpty() && listaAtracao.isEmpty()) {
+            val pastaAtracao = File(usb, atracaoFiltro)
+            val pastaAtracaoMinusculo = File(usb, atracaoFiltro.lowercase())
+            val pastaAlvoAtracao = if (pastaAtracao.exists()) pastaAtracao else if (pastaAtracaoMinusculo.exists()) pastaAtracaoMinusculo else null
+
+            pastaAlvoAtracao?.listFiles()?.forEach { arquivo ->
+                if (arquivo.isFile && extensoesVideo.contains(arquivo.extension.lowercase())) {
+                    listaAtracao.add(arquivo)
+                }
+            }
+        }
+
+        // 3. Procura vídeos aleatórios EXCLUSIVAMENTE dentro da pasta parametrizada (ex: /VIDEOS)
+        val pastaVideos = File(usb, pastaFiltro)
+        val pastaVideosMinusculo = File(usb, pastaFiltro.lowercase())
+        val pastaAlvoVideos = if (pastaVideos.exists()) pastaVideos else if (pastaVideosMinusculo.exists()) pastaVideosMinusculo else null
+
+        pastaAlvoVideos?.listFiles()?.forEach { arquivo ->
+            if (arquivo.isFile && extensoesVideo.contains(arquivo.extension.lowercase())) {
+                listaAleatoria.add(arquivo)
             }
         }
     }

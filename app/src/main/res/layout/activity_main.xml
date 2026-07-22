@@ -13,25 +13,96 @@
         android:orientation="vertical"
         android:gravity="center">
 
-        <Button
-            android:id="@+id/btnIniciar"
+        <!-- Header com o Ícone e Nome do App -->
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="32dp">
+
+            <ImageView
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/app_logo"
+                android:contentDescription="Ícone do App"
+                android:layout_marginEnd="10dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Flyer Media Player"
+                android:textColor="#FFFFFF"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnIniciar"
+            android:layout_width="260dp"
+            android:layout_height="wrap_content"
+            android:background="@drawable/btn_iniciar_bg"
+            app:backgroundTint="@null"
             android:focusable="true"
-            android:padding="28dp"
+            android:paddingVertical="16dp"
+            android:paddingHorizontal="24dp"
             android:text="INICIAR SISTEMA"
-            android:textSize="24sp"/>
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold" />
 
         <Button
             android:id="@+id/btnConfiguracoes"
-            android:layout_width="wrap_content"
+            android:layout_width="260dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
+            android:background="@drawable/btn_config_bg"
+            app:backgroundTint="@null"
             android:focusable="true"
+            android:paddingVertical="14dp"
             android:paddingHorizontal="24dp"
-            android:paddingVertical="12dp"
             android:text="CONFIGURAÇÕES"
-            android:textSize="16sp"/>
+            android:textColor="#F1F5F9"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <!-- Rodapé do Desenvolvedor -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="28dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Criado por Rodrigo Vernaschi"
+                android:textColor="#94A3B8"
+                android:textSize="12sp"
+                android:layout_marginEnd="10dp" />
+
+            <ImageView
+                android:id="@+id/btnGithub"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_github"
+                android:contentDescription="GitHub"
+                android:clickable="true"
+                android:focusable="true"
+                android:layout_marginEnd="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+
+            <ImageView
+                android:id="@+id/btnInstagram"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_instagram"
+                android:contentDescription="Instagram"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+        </LinearLayout>
     </LinearLayout>
 
     <ProgressBar
@@ -63,12 +134,13 @@
     <!-- PAINEL DE CONFIGURAÇÕES -->
     <LinearLayout
         android:id="@+id/layoutSettingsContainer"
-        android:layout_width="380dp"
-        android:layout_height="480dp"
+        android:layout_width="400dp"
+        android:layout_height="match_parent"
+        android:layout_marginVertical="12dp"
         android:layout_gravity="center"
         android:background="#EE111111"
         android:orientation="vertical"
-        android:padding="20dp"
+        android:padding="16dp"
         android:visibility="gone">
 
         <TextView
@@ -76,15 +148,16 @@
             android:layout_height="wrap_content"
             android:text="Configurações"
             android:textColor="#FFFFFF"
-            android:textSize="22sp"
+            android:textSize="20sp"
             android:textStyle="bold"
-            android:layout_marginBottom="12dp" />
+            android:layout_marginBottom="8dp" />
 
         <!-- CONTEÚDO ROLÁVEL DAS CONFIGURAÇÕES -->
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1">
+            android:layout_weight="1"
+            android:fillViewport="true">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -101,6 +174,27 @@
                     android:focusable="true"
                     android:focusedByDefault="true"
                     android:padding="6dp" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchIntercalarPrincipais"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="INTERCALAR VÍDEOS PRINCIPAIS"
+                    android:textColor="#00E676"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:focusable="true"
+                    android:layout_marginTop="6dp"
+                    android:padding="6dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Quando há múltiplos vídeos principais no dispositivo"
+                    android:textColor="#BBFFFFFF"
+                    android:textSize="12sp"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginBottom="8dp" />
 
                 <!-- MODO ATRAÇÃO -->
                 <View
@@ -156,6 +250,7 @@
                         android:textSize="15sp"
                         android:padding="8dp"
                         android:inputType="textCapCharacters"
+                        android:imeOptions="actionDone"
                         android:singleLine="true"
                         android:focusable="true" />
 
@@ -179,6 +274,7 @@
                         android:textSize="15sp"
                         android:padding="8dp"
                         android:inputType="number"
+                        android:imeOptions="actionDone"
                         android:singleLine="true"
                         android:focusable="true" />
 
@@ -205,7 +301,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Palavra-chave do vídeo principal:"
+                    android:text="Palavra-chave do vídeo principal\n(separe com vírgula para mais de uma palavra-chave):"
                     android:textColor="#CCCCCC"
                     android:textSize="13sp"
                     android:layout_marginTop="12dp"
@@ -216,12 +312,13 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:background="#22FFFFFF"
-                    android:hint="Ex: MARIA"
+                    android:hint="Ex: MARIA, promo, grupo_da_semana"
                     android:textColorHint="#88FFFFFF"
                     android:textColor="#FFFFFF"
                     android:textSize="15sp"
                     android:padding="8dp"
                     android:inputType="textCapCharacters"
+                    android:imeOptions="actionDone"
                     android:singleLine="true"
                     android:focusable="true" />
 
@@ -246,6 +343,7 @@
                     android:textSize="15sp"
                     android:padding="8dp"
                     android:inputType="textCapCharacters"
+                    android:imeOptions="actionDone"
                     android:singleLine="true"
                     android:focusable="true" />
 
@@ -270,6 +368,7 @@
                     android:textSize="15sp"
                     android:padding="8dp"
                     android:inputType="number"
+                    android:imeOptions="actionDone"
                     android:singleLine="true"
                     android:focusable="true" />
 
@@ -294,6 +393,7 @@
                     android:textSize="15sp"
                     android:padding="8dp"
                     android:inputType="number"
+                    android:imeOptions="actionDone"
                     android:singleLine="true"
                     android:focusable="true" />
 
@@ -318,6 +418,7 @@
                     android:textSize="15sp"
                     android:padding="8dp"
                     android:inputType="number"
+                    android:imeOptions="actionDone"
                     android:singleLine="true"
                     android:focusable="true" />
             </LinearLayout>
@@ -337,10 +438,13 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginEnd="6dp"
-                android:backgroundTint="#2E7D32"
+                android:background="@drawable/btn_iniciar_bg"
+                app:backgroundTint="@null"
                 android:focusable="true"
+                android:paddingVertical="12dp"
                 android:text="SALVAR"
                 android:textColor="#FFFFFF"
+                android:textSize="15sp"
                 android:textStyle="bold" />
 
             <Button
@@ -349,10 +453,13 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginStart="6dp"
-                android:backgroundTint="#C62828"
+                android:background="@drawable/btn_fechar_bg"
+                app:backgroundTint="@null"
                 android:focusable="true"
+                android:paddingVertical="12dp"
                 android:text="FECHAR"
                 android:textColor="#FFFFFF"
+                android:textSize="15sp"
                 android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
