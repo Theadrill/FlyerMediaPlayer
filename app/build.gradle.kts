@@ -19,6 +19,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -33,11 +34,9 @@ android {
 
 androidComponents {
     onVariants { variant ->
-        val buildType = variant.buildType
+        val buildType = variant.buildType ?: "release"
         variant.outputs.forEach { output ->
-            if (output is com.android.build.api.variant.impl.VariantOutputImpl) {
-                output.outputFileName.set("FlyerMediaPlayer-${buildType}.apk")
-            }
+            output.outputFileName.set("FlyerMediaPlayer-$buildType.apk")
         }
     }
 }
