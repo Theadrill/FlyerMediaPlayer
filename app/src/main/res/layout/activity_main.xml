@@ -421,6 +421,34 @@
                     android:imeOptions="actionDone"
                     android:singleLine="true"
                     android:focusable="true" />
+
+                <!-- LOG DE VÍDEOS NÃO SUPORTADOS / IGNORADOS -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#44FFFFFF"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Vídeos Incompatíveis / Ignorados:"
+                    android:textColor="#FF5252"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/txtLogVideosNaoSuportados"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="#22FF0000"
+                    android:textColor="#FFCDD2"
+                    android:textSize="12sp"
+                    android:padding="8dp"
+                    android:text="Nenhum vídeo incompatível detectado."
+                    android:lineSpacingExtra="2dp" />
             </LinearLayout>
         </ScrollView>
 

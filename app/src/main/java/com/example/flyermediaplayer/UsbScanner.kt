@@ -8,16 +8,65 @@ import java.io.File
 
 object UsbScanner {
 
+    data class ResultadoScan(
+        val principal: List<File>,
+        val atracao: List<File>,
+        val aleatorios: List<File>,
+        val naoSuportados: List<String>
+    )
+
+    fun checarMotivoIncompatibilidade(file: File): String? {
+        val extractor = android.media.MediaExtractor()
+        try {
+            extractor.setDataSource(file.absolutePath)
+            for (i in 0 until extractor.trackCount) {
+                val format = extractor.getTrackFormat(i)
+                val mime = format.getString(android.media.MediaFormat.KEY_MIME) ?: continue
+                if (mime.startsWith("video/")) {
+                    val codecList = android.media.MediaCodecList(android.media.MediaCodecList.REGULAR_CODECS)
+                    val hasDecoder = codecList.codecInfos.any { info ->
+                        !info.isEncoder && info.supportedTypes.any { type -> type.equals(mime, ignoreCase = true) }
+                    }
+                    if (!hasDecoder) {
+                        return "Codec $mime sem suporte no hardware desta TV Box"
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Em caso de erro na leitura do cabeçalho, permite continuar
+        } finally {
+            try { extractor.release() } catch (e: Exception) {}
+        }
+        return null
+    }
+
+    private fun processarEAdicionar(
+        arquivo: File,
+        listaAlvo: MutableList<File>,
+        listaNaoSuportados: MutableList<String>
+    ) {
+        val motivo = checarMotivoIncompatibilidade(arquivo)
+        if (motivo == null) {
+            listaAlvo.add(arquivo)
+        } else {
+            val logItem = "${arquivo.name} -> $motivo"
+            if (!listaNaoSuportados.contains(logItem)) {
+                listaNaoSuportados.add(logItem)
+            }
+        }
+    }
+
     fun buscarVideosDoUsb(
         context: Context,
         palavraChave: String = "MARIA",
         nomePastaAleatorios: String = "VIDEOS",
         modoAtracaoAtivo: Boolean = false,
         termoAtracao: String = ""
-    ): Triple<List<File>, List<File>, List<File>> {
-        val listaMaria = mutableListOf<File>()
+    ): ResultadoScan {
+        val listaPrincipal = mutableListOf<File>()
         val listaAtracao = mutableListOf<File>()
         val listaAleatoria = mutableListOf<File>()
+        val listaNaoSuportados = mutableListOf<String>()
         val extensoesVideo = listOf("mp4", "mkv", "avi")
 
         val termosFiltro = palavraChave.split(",")
@@ -34,10 +83,9 @@ object UsbScanner {
         if (!ultimoCaminhoUsbSalvo.isNullOrEmpty()) {
             val pastaSalva = File(ultimoCaminhoUsbSalvo)
             if (pastaSalva.exists() && pastaSalva.isDirectory) {
-                escanearDiretorioUsb(pastaSalva, extensoesVideo, termosFiltro, pastaFiltro, modoAtracaoAtivo, atracaoFiltro, listaMaria, listaAtracao, listaAleatoria)
-                if (listaMaria.isNotEmpty()) {
-                    // Encontrou imediatamente! Retorna sem perder tempo varrendo outros armazenamentos
-                    return Triple(listaMaria, listaAtracao, listaAleatoria)
+                escanearDiretorioUsb(pastaSalva, extensoesVideo, termosFiltro, pastaFiltro, modoAtracaoAtivo, atracaoFiltro, listaPrincipal, listaAtracao, listaAleatoria, listaNaoSuportados)
+                if (listaPrincipal.isNotEmpty()) {
+                    return ResultadoScan(listaPrincipal, listaAtracao, listaAleatoria, listaNaoSuportados)
                 }
             }
         }
@@ -58,24 +106,22 @@ object UsbScanner {
         }
 
         for (usb in pastasUsb) {
-            // Evita escanear de novo a pasta salva se já testamos no Fast Path
             if (ultimoCaminhoUsbSalvo != null && usb.absolutePath == ultimoCaminhoUsbSalvo) continue
 
-            escanearDiretorioUsb(usb, extensoesVideo, termosFiltro, pastaFiltro, modoAtracaoAtivo, atracaoFiltro, listaMaria, listaAtracao, listaAleatoria)
-            if (listaMaria.isNotEmpty()) {
-                // Guarda o novo caminho que deu certo para as próximas vezes
+            escanearDiretorioUsb(usb, extensoesVideo, termosFiltro, pastaFiltro, modoAtracaoAtivo, atracaoFiltro, listaPrincipal, listaAtracao, listaAleatoria, listaNaoSuportados)
+            if (listaPrincipal.isNotEmpty()) {
                 prefs.edit().putString("ultimo_caminho_usb", usb.absolutePath).apply()
                 break
             }
         }
 
         // 3. Fallback via MediaStore do Android moderno
-        if (listaMaria.isEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            escanearViaMediaStore(context, extensoesVideo, termosFiltro, pastaFiltro, modoAtracaoAtivo, atracaoFiltro, listaMaria, listaAtracao, listaAleatoria)
+        if (listaPrincipal.isEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            escanearViaMediaStore(context, extensoesVideo, termosFiltro, pastaFiltro, modoAtracaoAtivo, atracaoFiltro, listaPrincipal, listaAtracao, listaAleatoria, listaNaoSuportados)
         }
 
-        // 4. RETRY PÓS-PERMISSÃO: Se o sistema operacional concedeu a permissão recentemente, faz uma 2ª tentativa rápida para atualizar os descritores do USB
-        if (listaMaria.isEmpty() && listaAleatoria.isEmpty()) {
+        // 4. RETRY PÓS-PERMISSÃO
+        if (listaPrincipal.isEmpty() && listaAleatoria.isEmpty()) {
             try { Thread.sleep(350) } catch (e: Exception) {}
             pastasUsb.clear()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -92,22 +138,21 @@ object UsbScanner {
             }
 
             for (usb in pastasUsb) {
-                escanearDiretorioUsb(usb, extensoesVideo, termosFiltro, pastaFiltro, modoAtracaoAtivo, atracaoFiltro, listaMaria, listaAtracao, listaAleatoria)
-                if (listaMaria.isNotEmpty()) break
+                escanearDiretorioUsb(usb, extensoesVideo, termosFiltro, pastaFiltro, modoAtracaoAtivo, atracaoFiltro, listaPrincipal, listaAtracao, listaAleatoria, listaNaoSuportados)
+                if (listaPrincipal.isNotEmpty()) break
             }
 
-            if (listaMaria.isEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                escanearViaMediaStore(context, extensoesVideo, termosFiltro, pastaFiltro, modoAtracaoAtivo, atracaoFiltro, listaMaria, listaAtracao, listaAleatoria)
+            if (listaPrincipal.isEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                escanearViaMediaStore(context, extensoesVideo, termosFiltro, pastaFiltro, modoAtracaoAtivo, atracaoFiltro, listaPrincipal, listaAtracao, listaAleatoria, listaNaoSuportados)
             }
         }
 
-        // 5. FALLBACK INTELIGENTE: Se listaMaria continuar vazia, mas existirem vídeos na listaAleatoria ou no USB,
-        // promove os vídeos para a lista principal para que o app NUNCA fique travado sem reproduzir!
-        if (listaMaria.isEmpty() && listaAleatoria.isNotEmpty()) {
-            listaMaria.addAll(listaAleatoria)
+        // 5. FALLBACK INTELIGENTE: Se listaPrincipal continuar vazia, mas existirem vídeos na listaAleatoria
+        if (listaPrincipal.isEmpty() && listaAleatoria.isNotEmpty()) {
+            listaPrincipal.addAll(listaAleatoria)
         }
 
-        return Triple(listaMaria, listaAtracao, listaAleatoria)
+        return ResultadoScan(listaPrincipal, listaAtracao, listaAleatoria, listaNaoSuportados)
     }
 
     private fun escanearViaMediaStore(
@@ -117,9 +162,10 @@ object UsbScanner {
         pastaFiltro: String,
         modoAtracaoAtivo: Boolean,
         atracaoFiltro: String,
-        listaMaria: MutableList<File>,
+        listaPrincipal: MutableList<File>,
         listaAtracao: MutableList<File>,
-        listaAleatoria: MutableList<File>
+        listaAleatoria: MutableList<File>,
+        listaNaoSuportados: MutableList<String>
     ) {
         try {
             val projection = arrayOf(
@@ -143,7 +189,6 @@ object UsbScanner {
                     val fileName = it.getString(nameColumn) ?: continue
                     val file = File(filePath)
 
-                    // Ignora vídeos da memória interna principal (/emulated/0 ou /self/primary)
                     if (filePath.contains("/emulated/0") || filePath.contains("/self/primary")) continue
 
                     val extension = file.extension.lowercase()
@@ -152,11 +197,11 @@ object UsbScanner {
                         val nameUpper = fileName.uppercase()
 
                         if (modoAtracaoAtivo && atracaoFiltro.isNotEmpty() && (pathUpper.contains(atracaoFiltro) || nameUpper.contains(atracaoFiltro))) {
-                            listaAtracao.add(file)
+                            processarEAdicionar(file, listaAtracao, listaNaoSuportados)
                         } else if (termosFiltro.any { termo -> nameUpper.contains(termo) }) {
-                            listaMaria.add(file)
+                            processarEAdicionar(file, listaPrincipal, listaNaoSuportados)
                         } else if (pathUpper.contains("/$pastaFiltro/")) {
-                            listaAleatoria.add(file)
+                            processarEAdicionar(file, listaAleatoria, listaNaoSuportados)
                         }
                     }
                 }
@@ -229,26 +274,25 @@ object UsbScanner {
         pastaFiltro: String,
         modoAtracaoAtivo: Boolean,
         atracaoFiltro: String,
-        listaMaria: MutableList<File>,
+        listaPrincipal: MutableList<File>,
         listaAtracao: MutableList<File>,
-        listaAleatoria: MutableList<File>
+        listaAleatoria: MutableList<File>,
+        listaNaoSuportados: MutableList<String>
     ) {
         val arquivosRaiz = usb.listFiles() ?: return
 
-        // 1. Procura vídeos principais e vídeos de atração APENAS na RAIZ do volume
         arquivosRaiz.forEach { arquivo ->
             if (arquivo.isFile && extensoesVideo.contains(arquivo.extension.lowercase())) {
                 val nameUpper = arquivo.name.uppercase()
 
                 if (modoAtracaoAtivo && atracaoFiltro.isNotEmpty() && nameUpper.contains(atracaoFiltro)) {
-                    listaAtracao.add(arquivo)
+                    processarEAdicionar(arquivo, listaAtracao, listaNaoSuportados)
                 } else if (termosFiltro.any { termo -> nameUpper.contains(termo) }) {
-                    listaMaria.add(arquivo)
+                    processarEAdicionar(arquivo, listaPrincipal, listaNaoSuportados)
                 }
             }
         }
 
-        // 2. Se a Atração for uma pasta (ex: GRUPOS/GRUPO XXX ou PASTA_ATRACAO), verifica diretamente a pasta
         if (modoAtracaoAtivo && atracaoFiltro.isNotEmpty() && listaAtracao.isEmpty()) {
             val pastaAtracao = File(usb, atracaoFiltro)
             val pastaAtracaoMinusculo = File(usb, atracaoFiltro.lowercase())
@@ -256,19 +300,18 @@ object UsbScanner {
 
             pastaAlvoAtracao?.listFiles()?.forEach { arquivo ->
                 if (arquivo.isFile && extensoesVideo.contains(arquivo.extension.lowercase())) {
-                    listaAtracao.add(arquivo)
+                    processarEAdicionar(arquivo, listaAtracao, listaNaoSuportados)
                 }
             }
         }
 
-        // 3. Procura vídeos aleatórios EXCLUSIVAMENTE dentro da pasta parametrizada (ex: /VIDEOS)
         val pastaVideos = File(usb, pastaFiltro)
         val pastaVideosMinusculo = File(usb, pastaFiltro.lowercase())
         val pastaAlvoVideos = if (pastaVideos.exists()) pastaVideos else if (pastaVideosMinusculo.exists()) pastaVideosMinusculo else null
 
         pastaAlvoVideos?.listFiles()?.forEach { arquivo ->
             if (arquivo.isFile && extensoesVideo.contains(arquivo.extension.lowercase())) {
-                listaAleatoria.add(arquivo)
+                processarEAdicionar(arquivo, listaAleatoria, listaNaoSuportados)
             }
         }
     }
